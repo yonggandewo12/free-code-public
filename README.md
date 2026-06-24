@@ -36,6 +36,7 @@
 - [支持的提供方](#支持的提供方)
 - [构建变体](#构建变体)
 - [实验性功能](#实验性功能)
+- [SQLite 持久化记忆系统](#sqlite-持久化记忆系统)
 - [项目结构](#项目结构)
 - [技术栈](#技术栈)
 - [IPFS 镜像](#ipfs-镜像)
@@ -1506,7 +1507,73 @@ bun run ./scripts/build.ts --dev --feature=BRIDGE_MODE
 
 ---
 
-## 实验性功能
+## SQLite 持久化记忆系统
+
+本项目内置了基于 SQLite + FTS5 的持久化记忆系统，替代传统的 Markdown 文件记忆方式。
+
+### 核心特性
+
+- **SQLite + FTS5 全文搜索**：支持数千条记忆的高效检索，不浪费 context window
+- **中文分词**：jieba-wasm 应用层分词 + FTS5 unicode61，精确匹配中文内容
+- **双层作用域**：`global`（user/feedback，跨项目共享）和 `project`（project/reference，项目隔离）
+- **自动驱逐**：超过 5000 条或 50MB 时自动淘汰低价值记忆，保持记忆库精炼
+- **自动迁移**：首次启动时自动从 Markdown 文件记忆迁移到数据库
+- **损坏恢复**：启动时 `PRAGMA integrity_check` 检测损坏，自动备份并重建
+
+### 检索流程
+
+```
+用户输入 → jieba 分词 → FTS5 搜索（四层回退）→ 加权排序 → 注入 system-reminder
+```
+
+**四层回退策略**：
+
+| 优先级 | 策略 | 说明 |
+|--------|------|------|
+| 1 | AND 查询 | 精确匹配所有关键词 |
+| 1.5 | 逐步去掉最短 token 的 AND | AND 无结果时，按长度丢弃最短 token 重试 |
+| 2 | OR 查询 | 任一关键词匹配 |
+| 3 | LIKE 模糊搜索 | FTS5 完全无结果时兜底 |
+
+**加权排序公式**（替代 LLM 精排，省去调用成本）：
+
+```
+score = BM25 × 0.7 + recency × -0.2 + access_freq × -0.1
+```
+
+升序排序（越小越靠前），高频访问和最近访问的记忆优先。
+
+### 数据存储
+
+- 数据库路径：`~/.claude/memory.db`
+- 唯一键：`(scope, project_hash, name)`
+- `project_hash`：项目路径 SHA256 前 16 字符，用于项目级记忆隔离
+
+### 记忆类型
+
+| 类型 | 作用域 | 说明 |
+|------|--------|------|
+| `user` | global | 用户角色、偏好、专长 |
+| `feedback` | global | 工作方式指导、纠正与确认 |
+| `project` | project | 项目工作上下文、决策、截止日期 |
+| `reference` | project | 外部系统指针和资源 |
+
+### 使用方式
+
+记忆由 LLM 通过 `memory_write` 工具自动写入，通过 FTS5 检索自动注入为 `<system-reminder>`。用户也可通过 `/memory` 命令手动管理：
+
+| 命令 | 功能 |
+|------|------|
+| `/memory` | 显示最近记忆 + 统计概览 |
+| `/memory search <query>` | FTS5 搜索 |
+| `/memory stats` | 记忆总数、类型分布、数据库大小 |
+| `/memory evict` | 手动触发驱逐 |
+
+### Feature Flag
+
+通过编译时 `SQLITE_MEMORY` flag 门控，默认构建中包含。关闭时回退到传统 Markdown 文件记忆系统。
+
+---
 
 推荐使用：
 
@@ -1713,6 +1780,7 @@ agents: [general-purpose]
 | `src/hooks/` | React hooks |
 | `src/tasks/` | 后台任务系统 |
 | `src/tasks/LocalWorkflowTask/` | workflow 后台运行时与持久化 |
+| `src/memdb/` | SQLite + FTS5 持久化记忆系统 |
 | `.claude/workflows/` | 项目级 workflow 定义目录 |
 | `scripts/build.ts` | 构建脚本 |
 | `scripts/build-all.ts` | 跨平台全量构建脚本 |
