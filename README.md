@@ -525,7 +525,13 @@ source ~/.zshrc
 - `baseUrl`：该厂商 / 网关的 API 地址
 - `model`：该 profile 默认模型
 - `availableModels`：该 profile 下允许选择的模型
-- `customModels`：给 CLI 展示的自定义模型目录
+- `customModels`：给 CLI 展示的自定义模型目录，每个模型可配置：
+  - `id`：选择器标识（用于 `/model` 切换）
+  - `model`：实际发送给厂商的模型 ID
+  - `name`：显示名称（可选）
+  - `description`：简短描述（可选）
+  - `extraBody`：合并到请求体的额外 JSON 字段（可选，provider 专属参数如 `chat_template_kwargs`）
+  - `contextWindow`：最大上下文长度（可选，单位 tokens，最小 32K，不填则自动从 API 检测）
 - `env`：附加环境变量
 - `apiKeyEnv`：该 profile 使用哪个 API key 环境变量
 
@@ -615,7 +621,8 @@ source ~/.zshrc
           "id": "deepseek-reasoner",
           "model": "deepseek-reasoner",
           "name": "DeepSeek R1",
-          "description": "DeepSeek 推理模型"
+          "description": "DeepSeek 推理模型",
+          "contextWindow": 64000
         }
       ],
       "apiKeyEnv": "DEEPSEEK_API_KEY"
@@ -795,7 +802,7 @@ source ~/.zshrc
 - **新增 profile**：逐步引导填写 provider 类型、ID、名称、Base URL、API Key 环境变量、默认模型
 - **编辑 profile**：修改已有 profile 的任意字段
 - **删除 profile**：删除 profile（级联删除关联的 custom models）
-- **管理模型**：进入 profile 的模型管理界面，支持新增/编辑/删除 custom models
+- **管理模型**：进入 profile 的模型管理界面，支持新增/编辑/删除 custom models（每个模型可配置 Model ID、显示名称、描述、Extra Body、Context Window）
 
 > **注意**：`/profiles` 修改的配置写入 `~/.claude/settings.json`，与手动编辑完全等效。
 
@@ -873,6 +880,8 @@ CLI 实际发送给 provider 的会是对应的真实模型 ID，例如：
 2. `customModels[].id` 建议写成便于记忆的短名称，方便 `/model` 切换
 3. 每个 profile 最好显式配置 `model`
 4. 如果某个 profile 使用特殊 key 名，显式设置 `apiKeyEnv`
+5. `contextWindow` 仅在 provider API 不返回上下文长度时才需配置（如 vLLM、Ollama 等本地部署），否则留空让系统自动检测
+6. `extraBody` 用于注入 provider 专属参数（如 `{"chat_template_kwargs": {"enable_thinking": true}}`），标准字段（model、messages 等）会被自动过滤
 
 ### OpenAI Chat Completions 格式支持
 
