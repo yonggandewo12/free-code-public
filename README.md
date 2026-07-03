@@ -532,6 +532,7 @@ source ~/.zshrc
   - `description`：简短描述（可选）
   - `extraBody`：合并到请求体的额外 JSON 字段（可选，provider 专属参数如 `chat_template_kwargs`）
   - `contextWindow`：最大上下文长度（可选，单位 tokens，最小 32K，不填则自动从 API 检测）
+  - `adaptiveThinking`：覆盖 adaptive thinking 行为（可选，`true` 强制开启 / `false` 强制关闭走 fixed budget_tokens / 不填跟随 provider 默认）
 - `env`：附加环境变量
 - `apiKeyEnv`：该 profile 使用哪个 API key 环境变量
 
@@ -882,6 +883,7 @@ CLI 实际发送给 provider 的会是对应的真实模型 ID，例如：
 4. 如果某个 profile 使用特殊 key 名，显式设置 `apiKeyEnv`
 5. `contextWindow` 仅在 provider API 不返回上下文长度时才需配置（如 vLLM、Ollama 等本地部署），否则留空让系统自动检测
 6. `extraBody` 用于注入 provider 专属参数（如 `{"chat_template_kwargs": {"enable_thinking": true}}`），标准字段（model、messages 等）会被自动过滤
+7. `adaptiveThinking` 用于覆盖模型的 adaptive thinking 行为：`false` 可强制走 fixed budget_tokens（适用于不支持 adaptive thinking 的模型），`true` 强制开启，不填则跟随 provider 默认
 
 ### OpenAI Chat Completions 格式支持
 
