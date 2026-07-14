@@ -531,7 +531,7 @@ source ~/.zshrc
   - `name`：显示名称（可选）
   - `description`：简短描述（可选）
   - `extraBody`：合并到请求体的额外 JSON 字段（可选，provider 专属参数如 `chat_template_kwargs`）
-  - `contextWindow`：最大上下文长度（可选，单位 tokens，最小 32K，不填则自动从 API 检测）
+  - `contextWindow`：最大上下文长度（可选，单位 tokens，最小 32K）。若配置，则优先于 API 自动检测结果，可用于修正 provider 返回的误导值（如 free 模型被错误匹配为 paid 变体）。若留空，则自动从 API 检测。
   - `adaptiveThinking`：覆盖 adaptive thinking 行为（可选，仅对 Anthropic 模型生效，`true` 强制开启 / `false` 强制关闭走 fixed budget_tokens / 不填跟随 provider 默认）
   - `thinking`：控制 thinking 参数的开关（可选，`true` 开启 / `false` 关闭 / 不填跟随 provider 默认）。对所有 provider 生效。第三方模型（kimi、deepseek 等）需显式配置 `true` 才能发送 thinking 参数
 - `env`：附加环境变量
@@ -886,7 +886,7 @@ CLI 实际发送给 provider 的会是对应的真实模型 ID，例如：
 2. `customModels[].id` 建议写成便于记忆的短名称，方便 `/model` 切换
 3. 每个 profile 最好显式配置 `model`
 4. 如果某个 profile 使用特殊 key 名，显式设置 `apiKeyEnv`
-5. `contextWindow` 仅在 provider API 不返回上下文长度时才需配置（如 vLLM、Ollama 等本地部署），否则留空让系统自动检测
+5. `contextWindow` 优先于 API 返回的上下文长度，可用于修正 provider 返回的误导值（如 free 模型被错误匹配为 paid 变体导致显示 1M）。对于 API 不返回 context length 的本地部署（如 vLLM、Ollama），配置后同样生效。留空则自动从 API 检测。
 6. `extraBody` 用于注入 provider 专属参数（如 `{"chat_template_kwargs": {"enable_thinking": true}}`），标准字段（model、messages 等）会被自动过滤
 7. `adaptiveThinking` 用于覆盖模型的 adaptive thinking 行为（仅 Anthropic 模型生效）：`false` 可强制走 fixed budget_tokens（适用于不支持 adaptive thinking 的模型），`true` 强制开启，不填则跟随 provider 默认
 8. `thinking` 用于控制 thinking 参数的开关（所有 provider 生效）：第三方模型需设为 `true` 才能发送 thinking 参数；设为 `false` 可显式关闭 thinking；不填则跟随 provider 默认（Anthropic Claude 4+ 默认开启，其他默认关闭）。`extraBody.thinking` 可覆盖代码生成的 thinking 参数（如 `{"thinking": {"type": "enabled", "keep": "all"}}`），采用 deep merge，冲突时 extraBody 优先
