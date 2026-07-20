@@ -1607,7 +1607,7 @@ score = BM25 × 0.7 + recency × -0.2 + access_freq × -0.1
 | `/memory get <name>` | 查看指定记忆 |
 | `/memory stats` | 记忆总数、类型分布、数据库大小 |
 | `/memory dedup` | 查找冗余记忆（`--confirm` 执行删除） |
-| `/memory delete <name>` | 删除指定记忆（需 `--confirm`） |
+| `/memory delete <name> [name2...] [--confirm]` | 删除指定记忆（支持批量删除，需 `--confirm`） |
 | `/memory evict` | 手动触发驱逐（需 `--confirm`） |
 
 ### Feature Flag
