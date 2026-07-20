@@ -1036,6 +1036,22 @@ export OPENCODE_ZEN_API_KEY="你的 Key"
 
 > **反向翻译**（OpenAI → Anthropic）：响应中的 `reasoning_content`（DeepSeek 等）和 `reasoning`（OpenCode Zen 等）字段会自动翻译为 Anthropic `thinking` 内容块。
 
+##### 流式请求与 `stream_options.include_usage`
+
+当请求标记为流式（`stream: true`）时，CLI 会自动附加：
+
+```json
+{ "stream_options": { "include_usage": true } }
+```
+
+OpenAI 规范要求服务端在最后一个 chunk（`choices` 为空数组）里返回 `usage`，CLI 据此把 `prompt_tokens` / `completion_tokens` 写入 Anthropic 的 `message_delta` 与 `message_stop` 事件。如果不附加此字段，OpenAI 兼容 provider 通常不会在流中报告 token 用量，导致子代理 token 计数器、上下文核算等下游模块显示为 0。
+
+**已知约束**：
+
+- 主流 OpenAI 兼容 provider（OpenAI、OpenRouter、DeepSeek、GLM、Qwen、Moonshot、SiliconFlow、Together、Fireworks、Groq、vLLM、Ollama 等）均支持该字段。
+- 按 OpenAI 规范，服务端应忽略未知字段；但极少数非规范的私有网关可能因不识别 `stream_options` 而拒绝整个请求。
+- `stream_options` 属于受保护字段（与 `model` / `messages` / `stream` 等同级），**不能** 通过 `customModels[].extraBody` 覆盖或关闭。若你的私有网关属于上述非规范类型，可改用非流式请求（在 profile 中不触发 `stream: true`）或在网关侧透传/剥离该字段。
+
 #### 无缝切换回 Anthropic 模型
 
 当你从 OpenAI Chat 兼容的 provider 切换回 Anthropic 模型时，格式翻译自动停止，请求直接发送到 Anthropic API：
