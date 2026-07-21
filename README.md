@@ -37,6 +37,7 @@
 - [支持的提供方](#支持的提供方)
 - [构建变体](#构建变体)
 - [实验性功能](#实验性功能)
+- [Shareable Artifacts（会话看板）](#shareable-artifacts会话看板)
 - [项目结构](#项目结构)
 - [技术栈](#技术栈)
 - [IPFS 镜像](#ipfs-镜像)
@@ -1338,6 +1339,8 @@ bun run dev
 - `/provider`：切换厂商 profile 或内建 OpenAI GPT，并可输入/覆盖该 profile 的 API Key
 - `/model`：切换模型
 - `/goal`：自然语言设定目标，自动规划并执行 workflow（`/goal list` 查看，`/goal resume <name>` 续做）
+- `/share`：将当前会话生成为可分享的 HTML Artifact（终端预览/导出/本地服务/复制路径）
+- `/artifacts`：查看和管理历史 Artifact（列表/打开/删除）
 - `/workflows`：浏览并选择 workflow 执行
 
 ---
@@ -1806,6 +1809,120 @@ agents: [general-purpose]
 
 ---
 
+## Shareable Artifacts（会话看板）
+
+将终端 AI 会话转化为结构化的、可交互的网页看板，便于复盘、归档和分享。
+
+### 快速开始
+
+在 CLI 中与 AI 协作一段时间后：
+
+```text
+/share
+```
+
+选择分享方式：
+
+```text
+? 选择分享方式：
+❯ 终端预览
+  导出 HTML 文件
+  启动本地服务
+  复制文件路径
+```
+
+查看历史 Artifact：
+
+```text
+/artifacts
+```
+
+### /share 命令
+
+将当前会话自动聚类为结构化板块，生成可分享的 Artifact。
+
+**菜单选项**：
+
+| 选项 | 说明 |
+|------|------|
+| 终端预览 | 在终端内以可折叠面板形式预览完整 Artifact |
+| 导出 HTML 文件 | 生成自包含单文件 HTML（暗色主题、内联 CSS/JS、可离线查看），并打开浏览器 |
+| 启动本地服务 | 通过 `Bun.serve()` 在 `127.0.0.1` 临时提供 HTTP 访问（30 分钟自动关闭） |
+| 复制文件路径 | 将 HTML 文件路径复制到系统剪贴板 |
+
+**终端预览交互**：
+
+| 按键 | 动作 |
+|------|------|
+| `↑` / `↓` | 切换 Section 焦点 |
+| `空格` | 展开/折叠当前 Section |
+| `e` | 导出 HTML |
+| `q` / `Esc` | 退出预览 |
+
+### /artifacts 命令
+
+查看和管理历史 Artifact（按时间倒序列出）。
+
+**详情选项**：
+
+| 选项 | 说明 |
+|------|------|
+| 在浏览器中打开 | 重新生成 HTML 并在浏览器中打开 |
+| 启动本地服务 | 通过本地 HTTP 服务提供访问 |
+| 删除 | 删除该 Artifact 的 JSON 和 HTML 文件 |
+| 返回列表 | 回到列表界面 |
+
+### 会话解析引擎
+
+**Phase 1：规则粗聚类**（默认启用）
+
+自动将消息按类型分组为结构化板块：
+
+| 板块类型 | 识别信号 |
+|----------|----------|
+| `file_changes` | `diff --git` 或 `@@ -\d+,\d+ \+\d+,\d+ @@` |
+| `error` | `Error:`、`Uncaught Error:`、`Stack trace`、堆栈 `at` 行 |
+| `code` | 三反引号代码块 |
+| `timeline` | 相邻消息时间差 > 5 分钟 |
+| `discussion` | 其他对话 |
+
+**Phase 2：LLM 精炼聚类**（可选）
+
+调用 LLM 生成更友好的标题、摘要，修正类型。特性：
+
+- 使用最快可用模型（Haiku 级别）
+- 缓存 key = `hashPair(stableFields, rulesVersion)`，TTL 7 天
+- LLM 失败时自动降级到 Phase 1 结果
+
+### 生成的 HTML 特性
+
+- **自包含单文件**：内联 CSS/JS，零外部依赖，可离线查看
+- **暗色主题**：与终端体验一致
+- **XSS 防护**：所有用户内容通过 `escapeHTML()` 转义
+- **打印友好**：`@media print` 自动切换白底黑字
+- **大小限制**：10 MB 硬上限（`Buffer.byteLength` 字节级判断），超限自动截断
+- **7 种板块渲染**：timeline、code、error、file_changes、discussion、checklist、raw
+
+### 本地持久化
+
+```
+~/.claude/artifacts/
+├── index.json                     # 全局索引
+├── cache/                         # LLMRefiner 缓存
+└── {sessionId}/
+    ├── {artifactId}.json          # Artifact 元数据
+    └── {artifactId}.html          # HTML 文件
+```
+
+### 安全
+
+- LocalServer 强制绑定 `127.0.0.1`，不监听 `0.0.0.0`
+- 同一时间只允许一个服务运行，新服务启动前关闭旧服务
+- 30 分钟自动关闭（`shutdownTimer.unref()` 不阻止进程退出）
+- 当前不做自动脱敏，分享前请自行检查敏感信息
+
+---
+
 ## 项目结构
 
 | 路径 | 说明 |
@@ -1824,6 +1941,11 @@ agents: [general-purpose]
 | `src/tasks/` | 后台任务系统 |
 | `src/tasks/LocalWorkflowTask/` | workflow 后台运行时与持久化 |
 | `src/memdb/` | SQLite + FTS5 持久化记忆系统 |
+| `src/services/artifact/` | Shareable Artifacts 服务（解析/缓存/存储/HTML/HTTP） |
+| `src/components/artifact/` | Artifact 终端预览 UI 组件 |
+| `src/commands/share/` | /share 命令实现 |
+| `src/commands/artifacts/` | /artifacts 命令实现 |
+| `src/types/artifact.ts` | Artifact 数据模型 |
 | `.claude/workflows/` | 项目级 workflow 定义目录 |
 | `scripts/build.ts` | 构建脚本 |
 | `scripts/build-all.ts` | 跨平台全量构建脚本 |
