@@ -535,6 +535,11 @@ source ~/.zshrc
   - `contextWindow`：最大上下文长度（可选，单位 tokens，最小 32K）。若配置，则优先于 API 自动检测结果，可用于修正 provider 返回的误导值（如 free 模型被错误匹配为 paid 变体）。若留空，则自动从 API 检测。
   - `adaptiveThinking`：覆盖 adaptive thinking 行为（可选，仅对 Anthropic 模型生效，`true` 强制开启 / `false` 强制关闭走 fixed budget_tokens / 不填跟随 provider 默认）
   - `thinking`：控制 thinking 参数的开关（可选，`true` 开启 / `false` 关闭 / 不填跟随 provider 默认）。对所有 provider 生效。第三方模型（kimi、deepseek 等）需显式配置 `true` 才能发送 thinking 参数
+- `trustedFirstParty`：控制当 `baseUrl` 不是 `api.anthropic.com` 时是否将该端点视为 first-party Anthropic 代理（可选）。
+  - 省略（默认）：保留历史主机匹配行为（仅 `api.anthropic.com` 及 ant 用户的 `api-staging.anthropic.com` 视为 first-party）
+  - `true`：强制视为 first-party（仅当你自己运维且**原样转发**到 `api.anthropic.com` 的代理时使用）。这会启用内置模型（Sonnet/Opus/Haiku）在 `/model` 中可见，以及 first-party 专属功能（ToolSearch、远程设置同步、1M 上下文、first-party 用量计量）
+  - `false`：强制视为第三方（即使主机名看起来像 Anthropic）。此时必须通过 `customModels` 配置模型，否则 `/model` 列表为空
+  - **警告**：对非 Anthropic 后端（GLM、DeepSeek、OpenAI 兼容网关等）设为 `true` 会导致内置模型选项在运行时失败，且启用不兼容的功能
 - `env`：附加环境变量
 - `apiKeyEnv`：该 profile 使用哪个 API key 环境变量
 
