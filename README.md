@@ -814,7 +814,8 @@ source ~/.zshrc
 - **新增 profile**：逐步引导填写 provider 类型、ID、名称、Base URL、API Key 环境变量、默认模型
 - **编辑 profile**：修改已有 profile 的任意字段
 - **删除 profile**：删除 profile（级联删除关联的 custom models）
-- **管理模型**：进入 profile 的模型管理界面，支持新增/编辑/删除 custom models（每个模型可配置 Model ID、显示名称、描述、Extra Body、Context Window）
+- **管理模型**：进入 profile 的模型管理界面，支持新增/编辑/删除 custom models（每个模型可配置 Model ID、显示名称、描述、Extra Body、Context Window）；新增或编辑模型时若该 profile 尚未设置默认模型，可一键将其设为默认
+- **默认模型兜底**：即使 profile 未设置默认模型，`/provider` 切换到该 profile 时也会自动选用其第一个可用模型，避免沿用上一个厂商的模型导致请求报错
 
 > **注意**：`/profiles` 修改的配置写入 `~/.claude/settings.json`，与手动编辑完全等效。
 
