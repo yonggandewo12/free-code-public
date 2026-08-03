@@ -388,6 +388,11 @@ Invoke-WebRequest -Uri https://github.com/yonggandewo12/free-code-public/release
 '& "$PSScriptRoot/freecode.exe" $args' | Set-Content -Encoding ascii claudecode.ps1
 ```
 
+> **Windows 运行时说明**
+>
+> - **无 Git for Windows 也能启动**：缺少 git-bash 时 app 不会崩溃退出，仅在启动时提示安装（`https://git-scm.com/downloads/win`，或设置 `CLAUDE_CODE_GIT_BASH_PATH`）。Bash 工具（`BashTool` / bash 钩子）需要 git-bash 才能执行；PowerShell 相关功能不受影响。
+> - **凭据安全存储**：Windows 上登录凭据通过系统 DPAPI（`ProtectedData`，绑定当前用户）加密写入 `%USERPROFILE%\.claude\.credentials.json`，不再明文落盘；若 PowerShell/DPAPI 不可用则自动降级为明文存储。
+
 安装完成后运行：
 
 ```bash
