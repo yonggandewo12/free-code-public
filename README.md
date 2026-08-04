@@ -1526,6 +1526,22 @@ bun run ./scripts/build.ts --compile --target bun-windows-x64
 | `bun-linux-arm64` | `dist/cli-linux-arm64` |
 | `bun-windows-x64` | `dist/cli-win32-x64.exe` |
 
+### Vendored ripgrep（Glob/Grep 依赖）
+
+CLI 的 Glob/Grep 工具基于 ripgrep。为让安装产物在**没有系统 `rg` 的机器**（尤其 Windows）上开箱即用，构建/发布时会随包携带一个对应平台的 `rg` / `rg.exe` 二进制：
+
+- **本地源码构建**（`bun run build`）不包含它，运行时优先使用系统 `rg`（与之前行为一致）
+- **交叉编译**（`--compile` 带 `--target`）时，`build.ts` 调用 `scripts/download-ripgrep.ts` 下载对应平台 ripgrep（v15.1.0）到 `dist/vendor/ripgrep/`
+- **npm 平台包**（`publish-npm.ts`）把 rg 随包分发到 `@myfreecode/cli-*/bin/vendor/ripgrep/`，运行时基于 `process.execPath` 精确定位
+- **下载失败不阻断构建/发布**：仅打印 WARN，该产物回退使用系统 `rg`
+
+解析顺序（`src/utils/ripgrep.ts`）：系统 `rg` →（Bun 内嵌）→ vendored `rg`。设 `USE_BUILTIN_RIPGREP=1` 可强制跳过系统 `rg`。
+
+```bash
+# 单独下载某平台 rg 到指定目录
+bun run scripts/download-ripgrep.ts --suffix win32-x64 --out dist/vendor/ripgrep
+```
+
 ### GitHub Actions 自动构建与发布
 
 推送代码到 `main` 分支或推送 `v*` tag 即可自动触发构建：
