@@ -293,7 +293,7 @@ iex "& { $(irm https://github.com/yonggandewo12/free-code-public/releases/latest
 如果你已经安装了 Node.js（>=18），可以通过 npm 直接安装：
 
 ```bash
-npm i -g myfreecode
+npm i -g free-code-cli
 ```
 
 npm 会自动根据你的平台下载对应的预构建二进制。
@@ -313,13 +313,13 @@ claude
 ### 更新
 
 ```bash
-npm i -g myfreecode@latest
+npm i -g free-code-cli@latest
 ```
 
 ### 卸载
 
 ```bash
-npm uninstall -g myfreecode
+npm uninstall -g free-code-cli
 ```
 
 ---
@@ -1532,7 +1532,7 @@ CLI 的 Glob/Grep 工具基于 ripgrep。为让安装产物在**没有系统 `rg
 
 - **本地源码构建**（`bun run build`）不包含它，运行时优先使用系统 `rg`（与之前行为一致）
 - **交叉编译**（`--compile` 带 `--target`）时，`build.ts` 调用 `scripts/download-ripgrep.ts` 下载对应平台 ripgrep（v15.1.0）到 `dist/vendor/ripgrep/`
-- **npm 平台包**（`publish-npm.ts`）把 rg 随包分发到 `@myfreecode/cli-*/bin/vendor/ripgrep/`，运行时基于 `process.execPath` 精确定位
+- **npm 平台包**（`publish-npm.ts`）把 rg 随包分发到 `@free-code-cli/cli-*/bin/vendor/ripgrep/`，运行时基于 `process.execPath` 精确定位
 - **下载失败不阻断构建/发布**：仅打印 WARN，该产物回退使用系统 `rg`
 
 解析顺序（`src/utils/ripgrep.ts`）：系统 `rg` →（Bun 内嵌）→ vendored `rg`。设 `USE_BUILTIN_RIPGREP=1` 可强制跳过系统 `rg`。
