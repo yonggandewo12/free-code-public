@@ -35,6 +35,7 @@
 - [系统内置 Agent（6 个）](#系统内置-agent6-个)
 - [自定义角色（12 个）](#自定义角色12-个)
 - [支持的提供方](#支持的提供方)
+- [Feature Gate（功能门控）](#feature-gate功能门控)
 - [构建变体](#构建变体)
 - [实验性功能](#实验性功能)
 - [Shareable Artifacts（会话看板）](#shareable-artifacts会话看板)
@@ -1492,6 +1493,38 @@ agents/
 | `CLAUDE_CODE_USE_BEDROCK` | 启用 AWS Bedrock |
 | `CLAUDE_CODE_USE_VERTEX` | 启用 Vertex AI |
 | `CLAUDE_CODE_USE_FOUNDRY` | 启用 Foundry |
+
+---
+
+## Feature Gate（功能门控）
+
+部分命令受 feature gate 保护，需要输入 master code 或远程授权码才能执行。
+
+### 校验流程
+
+```
+用户执行 protected command
+  ├─ 本地校验（master code SHA256 比对）→ 通过则直接放行
+  └─ 本地不过 → 远程校验（POST /api/codes/verify，携带 code + MAC）
+       ├─ 远程通过 → 放行
+       └─ 远程失败/不可达 → 维持本地失败结果（fail-closed）
+```
+
+远程校验通过 `.claude.json` 中的 `featureGateSecondLevel.enabled` 开关控制，默认关闭（纯本地行为）。Server URL 已硬编码在 `src/featureGate/remoteConfig.ts` 中，不从配置读取。
+
+### MAC 地址检测（跨平台）
+
+远程校验会将本机物理网卡 MAC 地址发送给服务端用于设备绑定。各平台检测方式不同：
+
+| 平台 | 检测方式 | 说明 |
+|------|---------|------|
+| **macOS** | `ifconfig en0..enN \| awk '/ether/{print $2}'` | `os.networkInterfaces()` 只枚举有活动 IP 的接口，en0 断网时取不到，`ifconfig` 始终返回硬件地址 |
+| **Linux** | 读取 `/sys/class/net/<iface>/address` 文件 | 纯文件 I/O，无子进程开销，内核直接暴露的权威地址；跳过虚拟接口（lo/docker/veth 等） |
+| **Windows** | `getmac /fo csv /nh` | 系统内置命令，输出 CSV 格式，自动将 `-` 分隔符替换为 `:` 统一格式 |
+
+**回退策略**：系统命令不可用时回退到 `os.networkInterfaces()`，跳过虚拟接口（lo/awdl/utun/docker/veth/vmnet 等）和全零 MAC。
+
+**缓存**：MAC 地址在单次 session 内缓存，首次计算后后续调用直接返回缓存值。
 
 ---
 
