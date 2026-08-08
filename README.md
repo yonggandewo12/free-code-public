@@ -393,6 +393,7 @@ Invoke-WebRequest -Uri https://github.com/yonggandewo12/free-code-public/release
 >
 > - **无 Git for Windows 也能启动**：缺少 git-bash 时 app 不会崩溃退出，仅在启动时提示安装（`https://git-scm.com/downloads/win`，或设置 `CLAUDE_CODE_GIT_BASH_PATH`）。Bash 工具（`BashTool` / bash 钩子）需要 git-bash 才能执行；PowerShell 相关功能不受影响。
 > - **凭据安全存储**：Windows 上登录凭据通过系统 DPAPI（`ProtectedData`，绑定当前用户）加密写入 `%USERPROFILE%\.claude\.credentials.json`，不再明文落盘；若 PowerShell/DPAPI 不可用则自动降级为明文存储。
+> - **凭据安全存储（Linux）**：Linux 上登录凭据优先存入系统钥匙环 libsecret（`secret-tool`，GNOME/KDE 桌面自带），同一数据以单个 secret 保存；无头/无 D-Bus 会话的总强调分发上 `secret-tool` 不可用时自动降级为明文存储。
 
 安装完成后运行：
 
