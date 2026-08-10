@@ -68,6 +68,7 @@
 
 - 本仓库支持构建带实验特性的版本
 - 推荐使用 `bun run build:dev:full` 构建完整开发版
+- 定时任务（cron）已默认开启：`/cron` 命令管理定时任务，`CronCreate`/`CronDelete`/`CronList` 工具供 LLM 调用
 
 ---
 
