@@ -1516,17 +1516,58 @@ agents/
 
 ### MAC 地址检测（跨平台）
 
-远程校验会将本机物理网卡 MAC 地址发送给服务端用于设备绑定。各平台检测方式不同：
+远程校验会将本机**物理烧录 MAC**（burned-in hardware MAC）发送给服务端用于设备绑定，保证用户拿到一次授权码后跨重启、跨 Wi-Fi 重连、跨 NIC 漂移都持续生效。三平台按"烧录优先 + 活跃值兜底"双层链取 MAC：
 
-| 平台 | 检测方式 | 说明 |
-|------|---------|------|
-| **macOS** | `ifconfig en0..enN \| awk '/ether/{print $2}'` | `os.networkInterfaces()` 只枚举有活动 IP 的接口，en0 断网时取不到，`ifconfig` 始终返回硬件地址 |
-| **Linux** | 读取 `/sys/class/net/<iface>/address` 文件 | 纯文件 I/O，无子进程开销，内核直接暴露的权威地址；跳过虚拟接口（lo/docker/veth 等） |
-| **Windows** | `getmac /fo csv /nh` | 系统内置命令，输出 CSV 格式，自动将 `-` 分隔符替换为 `:` 统一格式 |
+| 平台 | P1（物理烧录） | P2（兜底，可能漂移） |
+|------|----------------|----------------------|
+| **macOS** | `ioreg -rd1 -c IOEthernetController` 取 `IOMACAddress`（系统自带，OUI 为芯片厂商） | `ifconfig en0..enN` 取 `ether`（受"私有 Wi-Fi 地址"随机化影响） |
+| **Linux** | `ethtool -P <iface>` 取 Permanent address（**需安装 ethtool + root/CAP_NET_ADMIN**） | `/sys/class/net/<iface>/address`（受 NetworkManager `cloned-mac-address` 随机化影响） |
+| **Windows** | PowerShell `(Get-NetAdapter -Physical \| Where Status='Up').PermanentMacAddress`（NDIS 6.60+ 驱动） | `getmac /fo csv /nh`（当前激活 MAC） |
 
-**回退策略**：系统命令不可用时回退到 `os.networkInterfaces()`，跳过虚拟接口（lo/awdl/utun/docker/veth/vmnet 等）和全零 MAC。
+**P3 兜底**：当 P1+P2 全失败时回退到 `os.networkInterfaces()`，跳过虚拟接口（lo/awdl/utun/docker/veth/vmnet 等）和全零 MAC。
 
-**缓存**：MAC 地址在单次 session 内缓存，首次计算后后续调用直接返回缓存值。
+#### 直接复制粘贴的命令
+
+在终端直接跑下面命令就能看到本机 CLI 上报的 MAC（与 `getLocalMac()` 的 P1 路径取同一个值；CLI 上报时统一归一化为**大写**）：
+
+**macOS**：
+
+```bash
+ioreg -rd1 -c IOEthernetController | grep -m1 IOMACAddress | awk -F'[<>]' '{print toupper($2)}' | sed 's/../&:/g; s/:$//'
+```
+
+输出类似 `C0:C7:DB:CB:14:BB`（12 位 hex 转冒号分隔，大写）。这是真正的**烧录硬件 MAC**，跨 Wi-Fi 重连、跨休眠唤醒都不变。如果想看当前活跃 MAC（受私有 Wi-Fi 影响，每次连可能变）对比跑 `ifconfig en0 | awk '/ether/{print $2}'`。
+
+**Linux**：
+
+```bash
+# P1 烧录（需要先装 ethtool: apt install ethtool / dnf install ethtool / pacman -S ethtool）
+sudo ethtool -P eth0
+# 输出: Permanent address: aa:bb:cc:dd:ee:ff（CLI 上报时归一化为 AA:BB:CC:DD:EE:FF）
+
+# 当前活跃（不需要 ethtool，但可能被 NetworkManager 随机化）
+cat /sys/class/net/eth0/address
+```
+
+**Windows**（PowerShell）：
+
+```powershell
+# P1 烧录（NDIS 6.60+ 驱动，Win 10 1709+ 全部支持）
+# 不用 Status='Up' 过滤——烧录 MAC 与链路状态无关，Disconnected 的网卡也能读到
+(Get-NetAdapter -Physical | Where-Object {$_.PermanentMacAddress} | Select-Object -First 1).PermanentMacAddress
+
+# 当前活跃（不需要 PowerShell，cmd 里直接跑）
+getmac /fo csv /nh
+```
+
+**烧录路径存在性**：
+- macOS `ioreg` 系统自带，100% 可用
+- Windows PowerShell + NetAdapter 模块自 Win 8 内置，`PermanentMacAddress` 字段由 NDIS 6.60+ 驱动强制暴露（Win 10 1709+ 全部支持）
+- Linux `ethtool` 默认未装（apt/dnf/pacman 各家都不预装）—— 未装时退化到 P2 sysfs，可能漂移
+
+**Provenance 标签**：`getLocalMac()` 内部通过 `getMacProvenance()` 暴露 MAC 来源（`'ioreg' | 'ethtool' | 'powershell' | 'untrusted-ifconfig' | 'untrusted-sysfs' | 'untrusted-getmac' | 'networkInterfaces' | 'none'`），用于日志诊断与测试断言，**不上报远端授权服务**。
+
+**缓存**：MAC 在单次 session 内缓存（module-level `cachedResult`），首次计算后后续调用直接返回缓存值；并发调用通过 `resultPromise` 去重，避免重复 fork 子进程。
 
 ---
 
