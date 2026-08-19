@@ -233,7 +233,7 @@ claudecode
 - `assets/default-settings.template.json`
 - `assets/default-claude.template.json`
 
-其中 `settings.json` 模板内置了真实使用示例：火山引擎、MiniMax、OpenCode Zen。
+其中 `settings.json` 模板内置了真实使用示例：MiniMax、DeepSeek、GLM。
 
 如果你要修改源码、调试问题或自行维护构建，依然推荐优先使用当前仓库目录直接执行脚本，而不是依赖远端安装命令。
 
@@ -910,7 +910,7 @@ CLI 实际发送给 provider 的会是对应的真实模型 ID，例如：
 
 本项目支持接入任何兼容 OpenAI Chat Completions API（`/v1/chat/completions`）的端点，内部会自动将 Anthropic Messages 格式翻译为 OpenAI Chat Completions 格式，并将流式响应翻译回来。
 
-> 说明：默认 `assets/default-settings.template.json` 只保留火山引擎、MiniMax、OpenCode Zen 三组示例；OpenRouter 等路由平台请按下面方式手动新增 profile。
+> 说明：默认 `assets/default-settings.template.json` 只保留 MiniMax、DeepSeek、GLM 三组示例；OpenRouter 等路由平台请按下面方式手动新增 profile。
 
 #### 从旧版 OpenRouter 模板迁移（可选）
 
