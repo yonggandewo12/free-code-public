@@ -533,7 +533,11 @@ source ~/.zshrc
 - `apiFormat`：API 格式（`anthropic` / `openai`），默认 `anthropic`。当设为 `openai` 时，请求会自动从 Anthropic Messages 格式翻译为 OpenAI Chat Completions 格式
 - `baseUrl`：该厂商 / 网关的 API 地址
 - `model`：该 profile 默认模型
-- `availableModels`：该 profile 下允许选择的模型
+- `availableModels`：该 profile 下允许选择的模型。条目写法：
+  - 真实模型 ID 直接整条写入（含 `/` 的 wire 名如 `openrouter/free` 不会被拆分；若该 ID 同时出现在 `customModels` 的 `id`/`model` 中则严格整体生效）
+  - 显示名与 API 模型 ID 不同时用复合格式 `显示id=API模型ID`（如 `chat=DeepSeek-V3`），`=` 右侧可含 `/`
+  - 旧版斜杠复合 `显示id/API模型ID` 仍兼容读取（仅在条目含 `/` 且未命中上述规则时按第一个 `/` 拆分），新配置一律写 `=` 格式
+  - 注意：`=` 复合条目无法被旧版本二进制正确解析；如需回退到旧版本 CLI，请先把此类条目手工改回 `显示id/API模型ID` 或纯 ID
 - `customModels`：给 CLI 展示的自定义模型目录，每个模型可配置：
   - `id`：选择器标识（用于 `/model` 切换）
   - `model`：实际发送给厂商的模型 ID
@@ -1588,6 +1592,7 @@ getmac /fo csv /nh
 ```bash
 # 构建特定平台
 bun run ./scripts/build.ts --compile --target bun-linux-x64
+bun run ./scripts/build.ts --compile --target bun-darwin-x64-baseline
 bun run ./scripts/build.ts --compile --target bun-darwin-arm64
 bun run ./scripts/build.ts --compile --target bun-windows-x64
 ```
@@ -1596,7 +1601,7 @@ bun run ./scripts/build.ts --compile --target bun-windows-x64
 
 | 目标 | 输出文件 |
 |------|---------|
-| `bun-darwin-x64` | `dist/cli-darwin-x64` |
+| `bun-darwin-x64-baseline` | `dist/cli-darwin-x64` |
 | `bun-darwin-arm64` | `dist/cli-darwin-arm64` |
 | `bun-linux-x64` | `dist/cli-linux-x64` |
 | `bun-linux-arm64` | `dist/cli-linux-arm64` |
