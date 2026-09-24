@@ -914,7 +914,7 @@ CLI 实际发送给 provider 的会是对应的真实模型 ID，例如：
 
 本项目支持接入任何兼容 OpenAI Chat Completions API（`/v1/chat/completions`）的端点，内部会自动将 Anthropic Messages 格式翻译为 OpenAI Chat Completions 格式，并将流式响应翻译回来。
 
-> 说明：默认 `assets/default-settings.template.json` 只保留 MiniMax、DeepSeek、GLM 三组示例；OpenRouter 等路由平台请按下面方式手动新增 profile。
+> 说明：默认 `assets/default-settings.template.json` 只保留 MiniMax、9router 两组示例（9router 指向本机 `http://localhost:20128/v1`，需本机运行 9router 服务）；DeepSeek、GLM、OpenRouter 等请按下面方式手动新增 profile。
 
 #### 从旧版 OpenRouter 模板迁移（可选）
 
