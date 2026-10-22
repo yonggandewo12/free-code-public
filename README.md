@@ -544,10 +544,13 @@ source ~/.zshrc
   - `name`：显示名称（可选）
   - `description`：简短描述（可选）
   - `extraBody`：合并到请求体的额外 JSON 字段（可选，provider 专属参数如 `chat_template_kwargs`）
-  - `contextWindow`：最大上下文长度（可选，单位 tokens，最小 32K）。若配置，则优先于 API 自动检测结果，可用于修正 provider 返回的误导值（如 free 模型被错误匹配为 paid 变体）。若留空，则自动从 API 检测。
+  - `contextWindow`：最大上下文长度（可选，单位 tokens，最小 8K）。若配置，则优先于 API 自动检测结果，可用于修正 provider 返回的误导值（如 free 模型被错误匹配为 paid 变体）。若留空，则自动从 API 检测。
   - `adaptiveThinking`：覆盖 adaptive thinking 行为（可选，仅对 Anthropic 模型生效，`true` 强制开启 / `false` 强制关闭走 fixed budget_tokens / 不填跟随 provider 默认）
   - `thinking`：控制 thinking 参数的开关（可选，`true` 开启 / `false` 关闭 / 不填跟随 provider 默认）。对所有 provider 生效。第三方模型（kimi、deepseek 等）需显式配置 `true` 才能发送 thinking 参数
   - `vision`：该模型是否接收图片输入（可选，默认 `true`，仅对 `apiFormat: "openai"` 的 profile 生效）。默认情况下，粘贴的截图与 Read 工具读到的图片会以 OpenAI 原生 `image_url`（data URL）形式发送；配置为 `false` 时，这些图片在构造请求体时降级为文字占位符——纯文本/不支持图片的网关会因 image 部分直接返回 400，此时才需要关闭。匹配模型名时会忽略 `[1m]` 后缀。可在 `/profiles` → 选中 profile → Models → 编辑/新增模型 → Vision 步骤配置
+  - `maxTokensField`：OpenAI Chat Completions 的输出上限字段（可选，`max_tokens` 或 `max_completion_tokens`）。默认发 `max_tokens`；官方 OpenAI 端点上的 o 系列/GPT-5 等推理模型自动使用 `max_completion_tokens`。网关要求新字段但模型名未命中自动判断时显式配置
+  - `promptCacheKey`：是否发送稳定的 `prompt_cache_key`（可选，默认官方 OpenAI 端点开启、其他网关关闭）。开启后按会话（fork 继承父会话、子代理继承当前会话）生成 key，便于兼容网关把同一前缀的请求路由到同一缓存分片；严格拒绝未知字段的网关不要开启
+  - `pricing`：覆盖该模型的价格（可选，USD / 百万 tokens）。字段为 `input`、`output`、`cacheRead`、`cacheWrite`；后两者省略时按输入价计。用于 provider 不返回价格时的 `/cost` 与 `maxBudgetUsd` 预算判停
 - `trustedFirstParty`：控制当 `baseUrl` 不是 `api.anthropic.com` 时是否将该端点视为 first-party Anthropic 代理（可选）。
   - 省略（默认）：保留历史主机匹配行为（仅 `api.anthropic.com` 及 ant 用户的 `api-staging.anthropic.com` 视为 first-party）
   - `true`：强制视为 first-party（仅当你自己运维且**原样转发**到 `api.anthropic.com` 的代理时使用）。这会启用内置模型（Sonnet/Opus/Haiku）在 `/model` 中可见，以及 first-party 专属功能（ToolSearch、远程设置同步、1M 上下文、first-party 用量计量）
