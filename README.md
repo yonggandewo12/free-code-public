@@ -27,12 +27,13 @@
 - [环境要求](#环境要求)
 - [从当前仓库安装与启动](#从当前仓库安装与启动)
 - [一键安装脚本（可选）](#一键安装脚本可选)
+- [通过 npm 安装（推荐）](#通过-npm-安装推荐)
 - [通过 GitHub Releases 下载预构建二进制](#通过-github-releases-下载预构建二进制)
 - [配置模型与密钥](#配置模型与密钥)
 - [Provider Profiles（多厂商配置）](#provider-profiles多厂商配置)
 - [OpenAI GPT 专项说明](#openai-gpt-专项说明)
 - [常用启动方式](#常用启动方式)
-- [系统内置 Agent（6 个）](#系统内置-agent6-个)
+- [系统内置 Agent（8 个）](#系统内置-agent8-个)
 - [自定义角色（12 个）](#自定义角色12-个)
 - [支持的提供方](#支持的提供方)
 - [Feature Gate（功能门控）](#feature-gate功能门控)
@@ -1368,24 +1369,29 @@ bun run dev
 
 ---
 
-## 系统内置 Agent（6 个）
+## 系统内置 Agent（8 个）
 
-系统级 Agent，由代码内置定义，可通过 `/config-agents` 命令配置模型和启用状态。
+系统级 Agent，由代码内置定义（`src/tools/AgentTool/built-in/`），可通过 `/config-agents` 命令配置模型和启用状态。
 
-| Agent | 说明 | 默认模型 | 默认启用 |
+| Agent | 说明 | 默认模型 | `/config-agents` 默认 |
 |-------|------|---------|---------|
-| **Explore** | 快速搜索文件和代码模式（只读） | haiku | ✅ |
+| **Explore** | 快速搜索文件和代码模式（只读） | inherit | ✅ |
 | **Plan** | 探索代码库，设计分步实现方案（只读） | inherit | ✅ |
 | **Claude Code Guide** | 解答 Claude Code CLI / Agent SDK / API 使用问题 | haiku | ✅ |
-| **Verification** | 构建、测试、lint 验证 + 对抗性探测 | inherit | ❌ |
+| **Statusline Setup** | 配置 `statusLine`（仅 Read/Edit，由 `/statusline` 内部派发） | sonnet | —（不在 `/config-agents` 列表） |
 | **General Purpose (Worker)** | 复杂多步骤任务，工具不受限 | inherit | ✅ |
+| **Verification** | 构建、测试、lint 验证 + 对抗性探测 | inherit | ❌ |
 | **Code Reviewer** | 结构化代码审查（正确性/安全性/健壮性/测试覆盖） | inherit | ❌ |
+| **Security Reviewer** | 8 维度安全审查（认证/加密/注入/数据暴露/依赖/配置/并发/输入验证） | inherit | ❌ |
+
+> 说明：`verification` / `code-reviewer` / `security-reviewer` 在 `/config-agents` 中按"默认关闭"展示；未写入 `agentConfigs` 时底层 `isAgentEnabled()` 返回 `true`，因此主会话提示词里仍会出现对应的委派指引。要彻底禁用，请在 `/config-agents` 中显式关闭。
 
 ### 模型选择建议
 
-- **Explore / Claude Code Guide**：轻量查询任务，`haiku` 足够；复杂代码库分析可升级 `sonnet`
-- **Plan / Verification / Code Reviewer**：需要深度推理，建议 `sonnet` 或 `opus`；简单任务 `haiku` 即可
-- **General Purpose**：根据任务复杂度选择，`inherit`（继承父会话模型）是合理默认值
+- **Claude Code Guide**：FAQ 类查询默认 `haiku` 足够；复杂 SDK 问题可升级 `sonnet`
+- **Explore / Plan**：默认继承父会话模型（部分第三方端点没有 `haiku` 别名，固定别名会 400）；需要更快可显式设 `agentConfigs.Explore.model = "haiku"`
+- **Verification / Code Reviewer / Security Reviewer**：需要深度推理，建议 `sonnet` 或 `opus`；简单任务 `haiku` 即可
+- **General Purpose**：定义中未写死 model，按 `getDefaultSubagentModel()` 继承父会话模型
 - 所有 Agent 均支持 `inherit`（继承父会话模型）和通过 Provider Profile 使用非 Claude 模型
 
 ### 配置方式
@@ -2040,28 +2046,42 @@ agents: [general-purpose]
 
 | 路径 | 说明 |
 |---|---|
-| `src/entrypoints/cli.tsx` | CLI 入口 |
-| `src/screens/REPL.tsx` | 主交互界面 |
-| `src/commands.ts` | 命令注册 |
-| `src/tools.ts` | 工具注册 |
+| `src/entrypoints/cli.tsx` | CLI 入口（薄引导层，按 flag 动态载入 `main.tsx`） |
+| `src/main.tsx` | Commander 子命令与启动编排（交互 / `-p` headless 分流） |
+| `src/screens/REPL.tsx` | 主交互界面（直接驱动 `query()`） |
+| `src/replLauncher.tsx` | REPL 动态加载 + feature gate 初始化 |
+| `src/QueryEngine.ts` | headless / SDK 会话生命周期（`submitMessage`） |
+| `src/query.ts` + `src/query/` | agent 主循环与拆分（deps / config / tokenBudget / transitions） |
+| `src/cli/print.ts` | `-p` headless 驱动器，双向 stream-json 控制协议 |
+| `src/commands.ts` | 命令注册（内置 + 技能 + 插件 + workflow + MCP） |
+| `src/tools.ts` | 工具注册（`getAllBaseTools` / `assembleToolPool`） |
+| `src/Tool.ts` | Tool 契约与 `ToolUseContext` |
 | `src/commands/` | 各类命令实现 |
 | `src/tools/` | 各类工具实现 |
 | `src/commands/workflows/` | workflow 命令入口 |
 | `src/tools/WorkflowTool/` | workflow 工具、解析与权限流 |
-| `src/services/` | API / OAuth / MCP / 分析等服务 |
-| `src/components/` | 终端 UI 组件 |
+| `src/services/` | API / OAuth / MCP / compact / artifact / analytics 等服务 |
+| `src/services/api/openai-chat-adapter/` | Anthropic ↔ OpenAI Chat 格式翻译（request/response/stream/reasoning） |
+| `src/utils/` | messages / hooks / sessionStorage / permissions / settings / model / plugins |
+| `src/components/` | 终端 UI 组件（含 `design-system/`） |
 | `src/hooks/` | React hooks |
-| `src/tasks/` | 后台任务系统 |
+| `src/ink/` + `src/ink.ts` | 内置 Ink fork（reconciler / yoga 布局 / 事件）+ ThemeProvider 包装 |
+| `src/tasks/` | 后台任务系统（7 类任务） |
 | `src/tasks/LocalWorkflowTask/` | workflow 后台运行时与持久化 |
 | `src/memdb/` | SQLite + FTS5 持久化记忆系统 |
+| `src/memdir/` | `MEMORY.md` 文件式记忆、跨项目注入、team memory |
+| `src/featureGate/` | master code + 远程授权码二级校验、受保护命令 |
 | `src/services/artifact/` | Shareable Artifacts 服务（解析/缓存/存储/HTML/HTTP） |
 | `src/components/artifact/` | Artifact 终端预览 UI 组件 |
 | `src/commands/share/` | /share 命令实现 |
 | `src/commands/artifacts/` | /artifacts 命令实现 |
 | `src/types/artifact.ts` | Artifact 数据模型 |
-| `.claude/workflows/` | 项目级 workflow 定义目录 |
+| `agents/` | 12 个自定义中文角色定义（需复制到 `~/.claude/agents/` 生效） |
+| `desktop/` | Electron 桌面壳（`main.mjs` + `engine/EngineHost.js` + `renderer/`） |
+| `.claude/workflows/` | 项目级 workflow 定义目录（按需自建；本仓库 `.claude/` 被 gitignore，不随仓库分发） |
 | `scripts/build.ts` | 构建脚本 |
 | `scripts/build-all.ts` | 跨平台全量构建脚本 |
+| `scripts/publish-npm.ts` | npm 多平台分包发布（含 vendored ripgrep） |
 
 ---
 
